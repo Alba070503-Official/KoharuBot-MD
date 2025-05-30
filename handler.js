@@ -128,7 +128,7 @@ let chat = global.db.data.chats[m.chat]
 if (typeof chat !== 'object')
 global.db.data.chats[m.chat] = {}
 if (chat) {
-if (!('sAutorespond' in chat)) chat.sAutorespond = '' 
+if (!('sAutorespond' in chat)) chat.sAutorespond = true 
 if (!('isBanned' in chat)) chat.isBanned = false       
 if (!('welcome' in chat)) chat.welcome = true        
 if (!('detect' in chat)) chat.detect = true             
@@ -204,7 +204,7 @@ game2: false,
 simi: false,
 primaryBot: null,
 antiTraba: true,
-autorespond: false, 
+autorespond: true, 
 autolevelup: false,
 expired: 0,
 horarioNsfw: {
