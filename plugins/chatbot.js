@@ -1,43 +1,57 @@
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import fetch from 'node-fetch'
 
-const genAI = new GoogleGenerativeAI("AIzaSyBL8zt0eSiidVE_C5o3SgyOW3drFgg9gwg")
+const respuestasPersonalizadas = {
+  hola: (nombre) => `Hola ${nombre} 💖 ¿cómo estás?`,
+  'quién es tu creador': () => 'Fui creado con amor por @Alba070503 💞',
+  'quien es tu creador': () => 'Fui creado con amor por @Alba070503 💞',
+  creador: () => 'Mi creador es @Alba070503, una gran mente detrás de este bot 🤖✨',
+  gracias: () => '¡Siempre para servirte! 😊',
+  ayuda: () => 'Estoy aquí para ayudarte 💡. Pregúntame lo que quieras.',
+  adiós: () => 'Hasta luego 🌸'
+}
 
-let handler = async function (m) {
-  // Solo privado y no comandos
-  if (m.isGroup || m.isBot || m.isCommand || !m.text) return
+const API_URL = 'https://api.neoxr.eu/api/gpt4-session'
+const API_KEY = 'russellxz'
+const SESSION_ID = '1727468410446638'
+
+let handler = async function (m, { conn }) {
+  if (m.isGroup || !m.text || m.fromMe) return // Solo privado, no de bot, no grupos
 
   const userText = m.text.toLowerCase()
   const nombre = m.pushName || 'Usuario'
+  const userId = m.sender
 
-  // Respuestas rápidas personalizadas
-  const respuestas = {
-    hola: `Hola ${nombre} 💖 ¿cómo estás?`,
-    'quién es tu creador': 'Fui creado con amor por @Alba070503 💞',
-    'quien es tu creador': 'Fui creado con amor por @Alba070503 💞',
-    creador: 'Mi creador es @Alba070503, una gran mente detrás de este bot 🤖✨',
-    gracias: '¡Siempre para servirte! 😊',
-    ayuda: 'Estoy aquí para ayudarte 💡. Pregúntame lo que quieras.',
-    adiós: 'Hasta luego 🌸',
-  }
-
-  for (const key in respuestas) {
+  // Respuestas personalizadas
+  for (const key in respuestasPersonalizadas) {
     if (userText.includes(key)) {
-      return await m.reply(respuestas[key])
+      return await conn.sendMessage(m.chat, {
+        text: respuestasPersonalizadas[key](nombre)
+      }, { quoted: m })
     }
   }
 
   try {
-    await global.loading?.(m, this)
+    await conn.sendMessage(m.chat, { react: { text: '💬', key: m.key } })
 
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" })
-    const result = await model.generateContent(userText)
-    const response = result.response.text()
-    await m.reply(response)
-  } catch (e) {
-    console.error(e)
-    await m.reply('❌ Ocurrió un error al responder tu mensaje.')
-  } finally {
-    await global.loading?.(m, this, true)
+    const res = await fetch(`${API_URL}?q=${encodeURIComponent(userText)}&session=${SESSION_ID}&apikey=${API_KEY}`)
+    const data = await res.json()
+
+    if (!data?.status || !data?.data?.message) throw new Error("No se obtuvo respuesta del GPT-4")
+
+    const respuestaGPT = data.data.message
+
+    await conn.sendMessage(m.chat, {
+      text: `✨ *GPT-4 responde a @${userId.replace(/[^0-9]/g, "")}:*\n\n${respuestaGPT}\n\n🔹 *Soy un bot creado con cariño por @Alba070503* 🤖`,
+      mentions: [userId]
+    }, { quoted: m })
+
+    await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } })
+
+  } catch (err) {
+    console.error('❌ Error en autoGPT:', err.message)
+    await conn.sendMessage(m.chat, {
+      text: `❌ *Error al obtener respuesta:*\n_${err.message}_`
+    }, { quoted: m })
   }
 }
 
